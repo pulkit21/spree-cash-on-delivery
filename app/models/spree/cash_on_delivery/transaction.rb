@@ -20,6 +20,7 @@ module Spree
       end
 
       def post_create(payment)
+        payment.order.adjustments.each { |a| a.destroy if a.originator == payment }
         payment.order.adjustments.create(:amount => Spree::Config[:cash_on_delivery_charge],
                                  :source => payment,
                                  :originator => payment,
@@ -31,7 +32,7 @@ module Spree
       end
 
       def actions
-        %w{capture void cash_received}
+        %w{capture void}
       end
    
       def can_capture?(payment)
@@ -41,33 +42,7 @@ module Spree
       def can_void?(payment)
         payment.state != 'void' and ['goods_sent', 'initial'].include?(payment.source.state)
       end
-   
-      def can_cash_received?(payment)
-        payment.state == 'completed' and payment.source.state == 'goods_sent'
-      end
-   
-      def capture(payment)
-        payment.update_attribute(:state, 'pending') if payment.state == 'checkout'
-        payment.complete
-        payment.source.send_goods
-        true
-      end
-   
-      def void(payment)
-        payment.update_attribute(:state, 'pending') if payment.state == 'checkout'
-        payment.void
-        payment.source.void_txn
-        true
-      end
-   
-      def cash_received(payment)
-        payment.source.receive_cash
-        true
-      end
 
-      def process!(payment)
-        capture(payment)
-      end
     end
   end
 end
