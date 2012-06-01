@@ -4,6 +4,20 @@ module Spree
       true # we want to show the confirm step.
     end
 
+    def authorize(*args)
+      ActiveMerchant::Billing::Response.new(true, "", {}, {})
+    end
+
+    def capture(payment, source, gateway_options)
+      payment.update_attribute(:state, 'pending') if payment.state == 'checkout'
+      payment.source.send_goods
+      ActiveMerchant::Billing::Response.new(true, "", {}, {})
+    end
+
+    def void(*args)
+      ActiveMerchant::Billing::Response.new(true, "", {}, {})
+    end
+
     def provider_class
       self.class
     end
@@ -17,3 +31,4 @@ module Spree
     end
   end
 end
+
