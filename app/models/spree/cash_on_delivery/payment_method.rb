@@ -1,16 +1,28 @@
 module Spree
   class CashOnDelivery::PaymentMethod < Spree::PaymentMethod
+
     def payment_profiles_supported?
       true # we want to show the confirm step.
     end
+
+    def post_create(payment)
+      payment.order.adjustments.each { |a| a.destroy if a.originator == payment }
+      payment.order.adjustments.create(:amount => Spree::Config[:cash_on_delivery_charge],
+                               :source => payment,
+                               :originator => payment,
+                               :label => I18n.t(:shipping_and_handling))
+    end
+    
+    def update_adjustment(adjustment, src)
+      adjustment.update_attribute_without_callbacks(:amount, Spree::Config[:cash_on_delivery_charge])
+    end
+
 
     def authorize(*args)
       ActiveMerchant::Billing::Response.new(true, "", {}, {})
     end
 
     def capture(payment, source, gateway_options)
-      payment.update_attribute(:state, 'pending') if payment.state == 'checkout'
-      payment.source.send_goods
       ActiveMerchant::Billing::Response.new(true, "", {}, {})
     end
 
@@ -18,12 +30,28 @@ module Spree
       ActiveMerchant::Billing::Response.new(true, "", {}, {})
     end
 
-    def provider_class
-      self.class
+    def actions
+      %w{capture void}
     end
+
+    def can_capture?(payment)
+      payment.state == 'pending' || payment.state == 'checkout'
+    end
+    
+    def can_void?(payment)
+      payment.state != 'void'
+    end
+
+    def source_required?
+      false
+    end
+
+    #def provider_class
+    #  self.class
+    #end
   
     def payment_source_class
-      Spree::CashOnDelivery::Transaction
+      nil
     end
   
     def method_type
@@ -31,4 +59,3 @@ module Spree
     end
   end
 end
-
