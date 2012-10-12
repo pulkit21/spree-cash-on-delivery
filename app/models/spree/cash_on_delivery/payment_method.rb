@@ -6,7 +6,7 @@ module Spree
     end
 
     def post_create(payment)
-      payment.order.adjustments.each { |a| a.destroy if a.originator == payment }
+      payment.order.adjustments.each { |a| a.destroy if a.originator == nil }
       payment.order.adjustments.create(:amount => Spree::Config[:cash_on_delivery_charge],
                                :source => payment,
                                :originator => payment,
